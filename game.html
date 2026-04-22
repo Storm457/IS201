@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiro-Gen</title>
+    <style>
+        :root {
+            --accent: #00f2ff;
+            --bg: #0a0a12;
+            --card: #161625;
+            --text: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header { text-align: center; margin-bottom: 20px; }
+        h1 { margin: 0; font-weight: 300; letter-spacing: 4px; color: var(--accent); text-transform: uppercase; }
+
+        .main-layout {
+            display: flex;
+            gap: 30px;
+            background: var(--card);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.7);
+            flex-wrap: wrap;
+            justify-content: center;
+            border: 1px solid rgba(0, 242, 255, 0.1);
+        }
+
+        canvas {
+            background: #000;
+            border-radius: 12px;
+            border: 1px solid #2d2d44;
+        }
+
+        .controls {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        
+        label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .value-badge { color: var(--accent); font-weight: bold; }
+
+        input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        button {
+            padding: 10px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--accent);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+        }
+
+        button:hover { background: var(--accent); color: #000; box-shadow: 0 0 10px var(--accent); }
+        .btn-animate { border-color: #ff00ff; color: #ff00ff; }
+        .btn-animate:hover { background: #ff00ff; color: #000; box-shadow: 0 0 10px #ff00ff; }
+        .full-width { grid-column: span 2; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Spiro-Gen</h1>
+        <p>Interactive Geometry Studio</p>
+    </div>
+
+    <div class="main-layout">
+        <canvas id="spiroCanvas" width="500" height="500"></canvas>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Outer Radius (R) <span class="value-badge" id="RVal">150</span></label>
+                <input type="range" id="R" min="10" max="250" value="150">
+            </div>
+            <div class="control-group">
+                <label>Inner Radius (r) <span class="value-badge" id="rVal">52</span></label>
+                <input type="range" id="r" min="1" max="150" value="52">
+            </div>
+            <div class="control-group">
+                <label>Pen Offset (d) <span class="value-badge" id="dVal">41</span></label>
+                <input type="range" id="d" min="1" max="150" value="41">
+            </div>
+            <div class="control-group">
+                <label>Hue <span class="value-badge" id="hueVal">180</span></label>
+                <input type="range" id="hue" min="0" max="360" value="180">
+            </div>
+            <div class="control-group">
+                <label>Complexity <span class="value-badge" id="resVal">50</span></label>
+                <input type="range" id="res" min="1" max="200" value="50">
+            </div>
+
+            <div class="actions">
+                <button class="btn-animate full-width" id="animBtn" onclick="toggleAnimation()">▶ Watch it Draw</button>
+                <button onclick="randomize()">Randomize</button>
+                <button onclick="stopAnimation(); location.reload();">Reset</button>
+                <button class="full-width" onclick="downloadImage()">Download Art</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('spiroCanvas');
+        const ctx = canvas.getContext('2d');
+        const sliders = document.querySelectorAll('input[type="range"]');
+        
+        let animationId = null;
+        let isAnimating = false;
+
+        function draw(instant = true) {
+            if (isAnimating && instant) stopAnimation();
+
+            const R = parseFloat(document.getElementById('R').value);
+            const r = parseFloat(document.getElementById('r').value);
+            const d = parseFloat(document.getElementById('d').value);
+            const h = document.getElementById('hue').value;
+            const res = parseFloat(document.getElementById('res').value);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = `hsl(${h}, 80%, 60%)`;
+            ctx.lineWidth = 1.5;
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            if (instant) {
+                ctx.beginPath();
+                for (let t = 0; t < Math.PI * res; t += 0.05) {
+                    let x = (R - r) * Math.cos(t) + d * Math.cos(((R - r) / r) * t);
+                    let y = (R - r) * Math.sin(t) - d * Math.sin(((R - r) / r) * t);
+                    if (t === 0) ctx.moveTo(cx + x, cy + y);
+                    else ctx.lineTo(cx + x, cy + y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // --- ANIMATION LOGIC ---
+        function toggleAnimation() {
+            if (isAnimating) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        }
+
+        function startAnimation() {
+            isAnimating = true;
+            document.getElementById('animBtn').innerText = "⏹ Stop Drawing";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const R = parseFloat(document.getElementById('R').value);
+            const r = parseFloat(document.getElementById('r').value);
+            const d = parseFloat(document.getElementById('d').value);
+            const h = document.getElementById('hue').value;
+            const res = parseFloat(document.getElementById('res').value);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            let t = 0;
+            ctx.strokeStyle = `hsl(${h}, 80%, 60%)`;
+            ctx.beginPath();
+
+            function animate() {
+                if (!isAnimating) return;
+
+                // Draw a few segments per frame for speed
+                for(let i = 0; i < 5; i++) {
+                    let x = (R - r) * Math.cos(t) + d * Math.cos(((R - r) / r) * t);
+                    let y = (R - r) * Math.sin(t) - d * Math.sin(((R - r) / r) * t);
+
+                    if (t === 0) ctx.moveTo(cx + x, cy + y);
+                    else ctx.lineTo(cx + x, cy + y);
+                    
+                    t += 0.05;
+                }
+                ctx.stroke();
+
+                if (t < Math.PI * res) {
+                    animationId = requestAnimationFrame(animate);
+                } else {
+                    stopAnimation();
+                }
+            }
+            animate();
+        }
+
+        function stopAnimation() {
+            isAnimating = false;
+            cancelAnimationFrame(animationId);
+            document.getElementById('animBtn').innerText = "▶ Watch it Draw";
+        }
+
+        // Event listeners for sliders
+        sliders.forEach(s => {
+            s.addEventListener('input', () => {
+                document.getElementById(s.id + 'Val').innerText = s.value;
+                draw(true); // Draw instantly when sliding
+            });
+        });
+
+        function randomize() {
+            stopAnimation();
+            sliders.forEach(s => {
+                const rand = Math.floor(Math.random() * (parseInt(s.max) - parseInt(s.min) + 1)) + parseInt(s.min);
+                s.value = rand;
+                document.getElementById(s.id + 'Val').innerText = rand;
+            });
+            draw(true);
+        }
+
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.download = 'spirograph.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        draw(true);
+    </script>
+    <button class="btn-back" onclick="history.back()">← Return</button>
+</body>
+</html>
